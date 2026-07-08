@@ -486,7 +486,10 @@ function checkDistance(i) {
     try {
       const res = await fetch(APPS_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // No explicit Content-Type: Apps Script Web Apps don't handle CORS preflight
+        // (OPTIONS) requests, and "application/json" triggers a preflight. Sending as
+        // "text/plain" (fetch's default for a string body) avoids preflight entirely;
+        // doPost still reads the raw JSON fine via e.postData.contents.
         body: JSON.stringify(formData)
       });
 
