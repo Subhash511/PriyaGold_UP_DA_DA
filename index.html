@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Priya Gold TA/DA Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial;
+      background: #f1f1f1;
+      padding: 20px;
+    }
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 800px;
+      margin: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+    select, input, button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      background: #218838;
+    }
+    .hidden {
+      display: none;
+    }
+    .success {
+      color: green;
+      margin-top: 20px;
+      text-align: center;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+    table input {
+      width: 100%;
+      border: none;
+      padding: 4px;
+      box-sizing: border-box;
+    }
+    .form-header {
+        display: grid;
+        place-items: center; /* Centers both vertically and horizontally */
+        text-align: center;
+        }
+        .form-header img {
+        max-width: 100%;
+        height: auto;
+        }
+        .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 30px;
+      flex-wrap: wrap; /* Makes it responsive */
+    }
+
+    .button-container a {
+      display: inline-block;
+      padding: 12px 20px;
+      background-color: #28a745; /* Bootstrap green */
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-size: 16px;
+      text-align: center;
+    }
+
+    .button-container a:hover {
+      background-color: #218838; /* Darker green on hover */
+    }
+  </style>
+</head>
+<body>
+
+<form id="travelForm" enctype="multipart/form-data" novalidate>
+  <div class="form-header">
+          <img src="https://priyagold.eazydms.in/img/logo.png" alt="Logo" width=150>
+          
+          <h2 style="text-align:center">Priya Gold TA/DA Form</h2>
+    </div>
+
+  <label for="state">State:</label>
+  <select id="state" required></select>
+
+  <label for="designation">User Designation:</label>
+  <select id="designation" required></select>
+
+  <label for="hq">HQ:</label>
+  <select id="hq" required></select>
+
+  <label for="user">User:</label>
+  <select id="user" required></select>
+
+  <label for="password">Password:</label>
+  <input type="password" id="password" required />
+
+  <div id="details" class="hidden">
+    <label for="month">Month:</label>
+    <input type="month" id="month" required />
+
+    <label for="week">Week:</label>
+    <select id="week" required>
+      <option value="">Select</option>
+      <option>Week-1</option>
+      <option>Week-2</option>
+      <option>Week-3</option>
+      <option>Week-4</option>
+    </select>
+
+    <label for="file">Bills Uploaded (Image/PDF):</label>
+    <input type="file" id="file" accept=".jpg,.jpeg,.png,.pdf" />
+
+    <div id="taDaTableContainer" class="hidden">
+      <h3>TA/DA Table</h3>
+      <div id="taDaTable"></div>
+    </div>
+  </div>
+  <br><br>
+  <button type="submit" id="submitBtn">Submit</button>
+  <div>
+    <P>सभी यूज़र्स का पासवर्ड या तो मोबाइल नंबर के आख़िरी 4 अंक हैं या 2025।</P>
+  </div>
+  <div class="success hidden" id="successMessage">Form submitted successfully!</div>
+
+  <div class="button-container">
+      <a id="statusLink" href="#" target="_blank" rel="noopener">Click for TA DA Status</a>
+
+    </div>
+</form>
+
+
+<script>
+  // ===================== CONFIG — edit only these values =====================
+  // Cloudflare Worker URL (dropdown data + password check). See cloudflare-worker/README.md
+  const WORKER_BASE_URL = 'https://priyagold-tada-worker.mudit4317.workers.dev';
+
+  // Google Apps Script Web App URL (google1.js) — submitted forms are POSTed here,
+  // which writes each entry as a row into the "Form Data" Google Sheet.
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBNVHjKS4AxbFOU-t-n2vuOKuWB1DiwFL28_scCjxb2PhP4AQ2xDzCM07reo70MWiWeQ/exec';
+
+  // Google Sheet link shown to users to view TA/DA submission status.
+  const SHEET_VIEW_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsJhK2qCuuIZyGB--UZ8rpn0xs5iB4_17Uh13mC8YEeekzxiSNwgoUJ6tBogdVbTSUnkhAtfhHmlpe/pubhtml?gid=1890595691&single=true';
+  // =============================================================================
+
+  document.getElementById('statusLink').href = SHEET_VIEW_URL;
+
+  let jsonData = {};
+  const stateEl = document.getElementById('state');
+  const designationEl = document.getElementById('designation');
+  const hqEl = document.getElementById('hq');
+  const userEl = document.getElementById('user');
+  const passwordEl = document.getElementById('password');
+  const detailsEl = document.getElementById('details');
+  const weekEl = document.getElementById("week");
+  const taDaTableContainer = document.getElementById("taDaTableContainer");
+  const taDaTable = document.getElementById("taDaTable");
+  const form = document.getElementById('travelForm');
+  const successMessage = document.getElementById('successMessage');
+  const submitBtn = document.getElementById('submitBtn');
+
+  async function loadData() {
+    try {
+      const response = await fetch(`${WORKER_BASE_URL}/api/dropdown`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      jsonData = await response.json();
+
+      // Insert default "Select State" option first
+      stateEl.innerHTML = '<option value="">Select State</option>';
+
+      Object.keys(jsonData).forEach(state => {
+        stateEl.add(new Option(state, state));
+      });
+    } catch (error) {
+      alert("Failed to load dropdown data.");
+      console.error("Error loading data:", error);
+    }
+  }
+
+  stateEl.addEventListener('change', () => {
+    designationEl.innerHTML = '<option value="">Select</option>';
+    hqEl.innerHTML = '<option value="">Select</option>';
+    userEl.innerHTML = '<option value="">Select</option>';
+    detailsEl.classList.add('hidden');
+    passwordEl.value = ''; // Clear password when state changes
+    const designations = Object.keys(jsonData[stateEl.value] || {});
+    designations.forEach(d => designationEl.add(new Option(d, d)));
+  });
+
+  designationEl.addEventListener('change', () => {
+    hqEl.innerHTML = '<option value="">Select</option>';
+    userEl.innerHTML = '<option value="">Select</option>';
+    detailsEl.classList.add('hidden');
+    passwordEl.value = ''; // Clear password when designation changes
+    const hqs = Object.keys(jsonData[stateEl.value]?.[designationEl.value] || {});
+    hqs.forEach(h => hqEl.add(new Option(h, h)));
+  });
+
+  hqEl.addEventListener('change', () => {
+    userEl.innerHTML = '<option value="">Select</option>';
+    detailsEl.classList.add('hidden');
+    passwordEl.value = ''; // Clear password when HQ changes
+    const users = Object.keys(jsonData[stateEl.value]?.[designationEl.value]?.[hqEl.value] || {});
+    users.forEach(u => userEl.add(new Option(u, u)));
+  });
+
+  userEl.addEventListener('change', () => {
+    passwordEl.value = '';
+    detailsEl.classList.add('hidden');
+  });
+
+  // Passwords are never shipped to the client — verification happens server-side
+  // via the Cloudflare Worker, which is the only place holding the real values.
+  let passwordCheckTimer = null;
+  passwordEl.addEventListener('input', () => {
+    detailsEl.classList.add('hidden');
+    clearTimeout(passwordCheckTimer);
+    const password = passwordEl.value;
+    if (!password || !userEl.value) return;
+    passwordCheckTimer = setTimeout(() => verifyPassword(password), 400);
+  });
+
+  async function verifyPassword(password) {
+    try {
+      const res = await fetch(`${WORKER_BASE_URL}/api/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state: stateEl.value,
+          designation: designationEl.value,
+          hq: hqEl.value,
+          user: userEl.value,
+          password
+        })
+      });
+      const result = await res.json();
+      if (result.valid) {
+        detailsEl.classList.remove('hidden');
+      } else {
+        detailsEl.classList.add('hidden');
+      }
+    } catch (error) {
+      console.error('Password verification failed', error);
+    }
+  }
+
+
+function generateTable(startDay, endDay) {
+  let html = `<table border="1" cellpadding="5">
+      <tr>
+        <th>Day</th>
+        <th>Place From</th>
+        <th>Place To</th>
+        <th>Type_of_Travel</th>
+        <th>Distance in Km</th>
+        <th>DA (₹)</th>
+        <th>Night Allowance (₹)</th>
+      </tr>`;
+
+  for (let i = startDay; i <= endDay; i++) {
+    html += `
+      <tr>
+        <td>Day ${i}</td>
+        <td><input type="text" name="place_from_${i}" /></td>
+        <td><input type="text" name="place_to_${i}" /></td>
+        <td>
+          <select name="is_hills_applicable_${i}" onchange="validateRow(${i})">
+              <option value="">--Select--</option>
+              <option value="Local" selected>Local</option>
+              <option value="Outer">Outer</option>
+              <option value="Leave">Leave</option>
+              <option value="Meeting">Meeting</option>
+              <option value="Weekly Off/Sunday">Weekly Off/Sunday</option>
+              <option value="Holiday">Holiday</option>
+          </select>
+        </td>
+        <td><input type="number" id="distance_${i}" name="distance_${i}" min="0" onchange="checkDistance(${i})" /></td>
+        <td><input type="number" id="da_${i}" name="da_${i}" min="0" /></td>
+        <td>
+          <select name="night_allowance_${i}">
+              <option value="">--Select--</option>
+              <option value="Yes">Yes</option>
+              <option value="No" selected>No</option>
+          </select>
+        </td>
+      </tr>`;
+  }
+
+  html += `</table>`;
+  document.getElementById("taDaTable").innerHTML = html;
+
+  // Run validation once after table load
+  for (let i = startDay; i <= endDay; i++) {
+    validateRow(i);
+  }
+}
+
+// Validation function
+function validateRow(i) {
+  let travelType = document.querySelector(`[name="is_hills_applicable_${i}"]`).value;
+  let distance = document.getElementById(`distance_${i}`);
+  let da = document.getElementById(`da_${i}`);
+
+  if (["Holiday", "Weekly Off/Sunday","Leave"].includes(travelType)) {
+    distance.value = 0;
+    distance.readOnly = true;
+    da.value = 0;
+    da.readOnly = true;
+  } else if (["Outer", "Meeting"].includes(travelType)) {
+    distance.readOnly = false;
+    da.readOnly = false;
+  } else if (["Local"].includes(travelType)) {
+    distance.value = 0;
+    distance.readOnly = true;
+    da.readOnly = false;
+  }else {
+    distance.readOnly = false;
+    da.readOnly = false;
+  }
+}
+// Distance check for Outer/Meeting
+function checkDistance(i) {
+  let travelType = document.querySelector(`[name="is_hills_applicable_${i}"]`).value;
+  let distance = document.getElementById(`distance_${i}`);
+
+  if (["Outer", "Meeting"].includes(travelType) && (distance.value == 0 || distance.value === "")) {
+    alert("For Outer or Meeting travel, Distance must be greater than 0!");
+    distance.focus();
+  }
+}
+
+ 
+  weekEl.addEventListener("change", () => {
+    const selectedWeek = weekEl.value;
+    taDaTableContainer.classList.remove("hidden");
+
+    const selectedMonth = document.getElementById("month").value;
+    if (!selectedMonth) return;
+    const [year, month] = selectedMonth.split("-");
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    switch (selectedWeek) {
+      case "Week-1": generateTable(1, 7); break;
+      case "Week-2": generateTable(8, 14); break;
+      case "Week-3": generateTable(15, 21); break;
+      case "Week-4": generateTable(22, daysInMonth); break;
+      default:
+        taDaTable.innerHTML = '';
+        taDaTableContainer.classList.add("hidden");
+    }
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    submitBtn.disabled = true;
+    successMessage.classList.add("hidden");
+
+    const formData = {
+      State: stateEl.value,
+      Designation: designationEl.value,
+      HQ: hqEl.value,
+      User: userEl.value,
+      Month: document.getElementById("month").value,
+      Week: weekEl.value,
+      Entries: []
+    };
+
+    const fileInput = document.getElementById("file");
+  const file = fileInput.files[0];
+
+  // Read file as base64 if present
+  if (file) {
+    const base64String = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);  // remove data:<type>;base64,
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    formData.File = {
+      name: file.name,
+      type: file.type,
+      content: base64String
+    };
+  }
+
+
+    const rows = document.querySelectorAll("#taDaTable tr");
+    rows.forEach((row, index) => {
+    if (index === 0) return; // skip header
+
+    const from = row.querySelector('input[name^="place_from"]');
+    const to = row.querySelector('input[name^="place_to"]');
+    const hills = row.querySelector('select[name^="is_hills_applicable"]');
+    const distance = row.querySelector('input[name^="distance"]');
+    const da = row.querySelector('input[name^="da"]');
+    const night = row.querySelector('select[name^="night_allowance"]');
+
+    const day = row.querySelector("td")?.textContent;
+
+    if (from?.value || to?.value || hills?.value || distance?.value || da?.value || night?.value) {
+      formData.Entries.push({
+        Day: day,
+        Place_From: from.value.trim(),
+        Place_To: to.value.trim(),
+        Hills: hills.value.trim(),
+        Distance_KM: distance.value.trim(),
+        Da: da.value.trim(),
+        Night_Allowance_Rs: night.value.trim()
+      });
+    }
+  });
+
+    console.log(formData)
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+
+      if (res.ok) {
+        form.reset();
+        taDaTable.innerHTML = '';
+        detailsEl.classList.add("hidden");
+        taDaTableContainer.classList.add("hidden");
+        successMessage.classList.remove("hidden");
+        setTimeout(() => successMessage.classList.add("hidden"), 5000);
+      } else {
+        alert("Form submission failed.");
+      }
+    } catch (err) {
+      console.error("Error submitting form", err);
+      alert("An error occurred.");
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  loadData();
+</script>
+
+</body>
+</html>

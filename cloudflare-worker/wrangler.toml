@@ -1,0 +1,20 @@
+name = "priyagold-tada-worker"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# Auto refresh: 12:00 PM, 5:00 PM and 7:00 PM IST (IST = UTC+5:30)
+[triggers]
+crons = ["30 6 * * *", "30 11 * * *", "30 13 * * *"]
+
+[[kv_namespaces]]
+binding = "DROPDOWN_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[vars]
+# Google Sheet ID (from the sheet URL: https://docs.google.com/spreadsheets/d/<THIS_PART>/edit)
+SHEET_ID = "1a56LFn1pn1VmSSAK8cx15y3aagp3U4Ungy-kXNaH29s"
+# Name of the tab/sheet holding employee master data
+SHEET_NAME = "master"
+
+# REFRESH_SECRET is NOT set here — set it with:
+#   wrangler secret put REFRESH_SECRET
