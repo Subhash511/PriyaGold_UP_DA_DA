@@ -469,7 +469,7 @@ function checkDistance(i) {
 
     const day = row.querySelector("td")?.textContent;
 
-    if (from?.value || to?.value || hills?.value || distance?.value || da?.value || night?.value) {
+    if (from?.value.trim() || to?.value.trim()) {
       formData.Entries.push({
         Day: day,
         Place_From: from.value.trim(),
