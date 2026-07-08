@@ -99,6 +99,7 @@
       background-color: #218838; /* Darker green on hover */
     }
   </style>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -166,10 +167,10 @@
 
   // Google Apps Script Web App URL (google1.js) — submitted forms are POSTed here,
   // which writes each entry as a row into the "Form Data" Google Sheet.
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBNVHjKS4AxbFOU-t-n2vuOKuWB1DiwFL28_scCjxb2PhP4AQ2xDzCM07reo70MWiWeQ/exec';
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwprtNby8QXYawEEMuokHQbXy_rhq3xerWagXwl1cHHOIoAVLNJv8zjUkV6HjxMjmk8/exec';
 
-  // Google Sheet link shown to users to view TA/DA submission status.
-  const SHEET_VIEW_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsJhK2qCuuIZyGB--UZ8rpn0xs5iB4_17Uh13mC8YEeekzxiSNwgoUJ6tBogdVbTSUnkhAtfhHmlpe/pubhtml?gid=1890595691&single=true';
+  // Google Sheet link shown to users to view TA/DA submission status ("Checklist" tab).
+  const SHEET_VIEW_URL = 'https://docs.google.com/spreadsheets/d/1a56LFn1pn1VmSSAK8cx15y3aagp3U4Ungy-kXNaH29s/edit?gid=763801831#gid=763801831';
   // =============================================================================
 
   document.getElementById('statusLink').href = SHEET_VIEW_URL;
@@ -381,6 +382,37 @@ function checkDistance(i) {
     }
   });
 
+  function downloadExcel(formData) {
+    const safe = (s) => String(s || "").replace(/[\\/:*?"<>|]/g, "_").trim();
+
+    const rows = [
+      ["State", formData.State],
+      ["Designation", formData.Designation],
+      ["HQ", formData.HQ],
+      ["User", formData.User],
+      ["Month", formData.Month],
+      ["Week", formData.Week],
+      [],
+      ["Day", "Place From", "Place To", "Travel Type", "Distance (KM)", "DA (Rs)", "Night Allowance (Rs)"],
+      ...formData.Entries.map((entry) => [
+        entry.Day,
+        entry.Place_From,
+        entry.Place_To,
+        entry.Hills,
+        entry.Distance_KM,
+        entry.Da,
+        entry.Night_Allowance_Rs
+      ])
+    ];
+
+    const sheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "TA-DA");
+
+    const filename = `${safe(formData.User)}_${safe(formData.Week)}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+  }
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -452,6 +484,7 @@ function checkDistance(i) {
       });
 
       if (res.ok) {
+        downloadExcel(formData);
         form.reset();
         taDaTable.innerHTML = '';
         detailsEl.classList.add("hidden");
