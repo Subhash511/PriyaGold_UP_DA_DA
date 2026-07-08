@@ -385,6 +385,13 @@ function checkDistance(i) {
   function downloadExcel(formData) {
     const safe = (s) => String(s || "").replace(/[\\/:*?"<>|]/g, "_").trim();
 
+    const monthLabel = (monthStr) => {
+      if (!monthStr) return "";
+      const [year, month] = monthStr.split("-");
+      const date = new Date(Number(year), Number(month) - 1, 1);
+      return date.toLocaleString("en-US", { month: "long", year: "numeric" }).replace(" ", "-");
+    };
+
     const rows = [
       ["State", formData.State],
       ["Designation", formData.Designation],
@@ -409,7 +416,7 @@ function checkDistance(i) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "TA-DA");
 
-    const filename = `${safe(formData.User)}_${safe(formData.Week)}.xlsx`;
+    const filename = `${safe(formData.User)}_${monthLabel(formData.Month)}_${safe(formData.Week)}.xlsx`;
     XLSX.writeFile(workbook, filename);
   }
 
